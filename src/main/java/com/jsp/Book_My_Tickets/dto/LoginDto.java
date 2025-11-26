@@ -1,0 +1,10 @@
+package com.jsp.Book_My_Tickets.dto;
+
+import lombok.Data;
+
+@Data
+public class LoginDto {
+	private String email;
+	private String password;
+
+}

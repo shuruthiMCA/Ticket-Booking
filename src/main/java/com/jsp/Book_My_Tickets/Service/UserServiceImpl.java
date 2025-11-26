@@ -1,65 +1,59 @@
 package com.jsp.Book_My_Tickets.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.KeySpec;
-import java.util.Base64;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.stereotype.Service;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.jsp.Book_My_Tickets.Entity.User;
+import com.jsp.Book_My_Tickets.Repository.UserRepository;
+import com.jsp.Book_My_Tickets.Util.AES;
+import com.jsp.Book_My_Tickets.dto.LoginDto;
+import com.jsp.Book_My_Tickets.dto.UserDto;
+
+import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-	private static final String SECRET_KEY = "pioqwbautwqnmsduoi";
-	private static final String SALTVALUE = "uasbnasddoiuqw";
 
-	public static String encrypt(String strToEncrypt) {
-		try {
-			byte[] iv = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-			IvParameterSpec ivspec = new IvParameterSpec(iv);
-			SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-			KeySpec spec = new PBEKeySpec(SECRET_KEY.toCharArray(), SALTVALUE.getBytes(), 65536, 256);
-			SecretKey tmp = factory.generateSecret(spec);
-			SecretKeySpec secretKey = new SecretKeySpec(tmp.getEncoded(), "AES");
-			Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-			cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivspec);
-			return Base64.getEncoder().encodeToString(cipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8)));
-		} catch (InvalidAlgorithmParameterException | InvalidKeyException | NoSuchAlgorithmException
-				| InvalidKeySpecException | BadPaddingException | IllegalBlockSizeException
-				| NoSuchPaddingException e) {
-			System.out.println("Error occurred during encryption: " + e.toString());
-		}
-		return null;
-	}
+    private final UserRepository userRepository;
 
-	public static String decrypt(String strToDecrypt) {
-		try {
-			byte[] iv = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-			IvParameterSpec ivspec = new IvParameterSpec(iv);
-			SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-			KeySpec spec = new PBEKeySpec(SECRET_KEY.toCharArray(), SALTVALUE.getBytes(), 65536, 256);
-			SecretKey tmp = factory.generateSecret(spec);
-			SecretKeySpec secretKey = new SecretKeySpec(tmp.getEncoded(), "AES");
-			Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
-			cipher.init(Cipher.DECRYPT_MODE, secretKey, ivspec);
-			return new String(cipher.doFinal(Base64.getDecoder().decode(strToDecrypt)));
-		} catch (InvalidAlgorithmParameterException | InvalidKeyException | NoSuchAlgorithmException
-				| InvalidKeySpecException | BadPaddingException | IllegalBlockSizeException
-				| NoSuchPaddingException e) {
-			System.out.println("Error occurred during decryption: " + e.toString());
-		}
-		return null;
-	}
+    @Override
+    public String register(@Valid UserDto userDto, BindingResult result) {
+        if (!userDto.getPassword().equals(userDto.getConfirmPassword()))
+            result.rejectValue("confirmPassword", "error.confirmPassword",
+                    "* Password and ConfirmPassword Should be Same");
+
+        if (result.hasErrors())
+            return "register.html";
+        else
+            return "main.html";
+    }
+
+    @Override
+    public String login(LoginDto dto, RedirectAttributes attributes, HttpSession session) {
+
+        User user = userRepository.findByEmail(dto.getEmail());
+
+        if (user == null) {
+            attributes.addFlashAttribute("fail", "Invalid Email");
+            return "redirect:/login";
+        } else {
+            if (AES.decrypt(user.getPassword()).equals(dto.getPassword())) {
+                session.setAttribute("user", user);
+                attributes.addFlashAttribute("pass", "Login Success");
+                return "redirect:/";
+            } else {
+                attributes.addFlashAttribute("fail", "Invalid Password");
+                return "redirect:/login";
+            }
+        }
+    }
 }
+
+
+
