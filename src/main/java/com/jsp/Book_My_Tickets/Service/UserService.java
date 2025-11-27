@@ -17,8 +17,10 @@ public interface UserService {
 		
 	
 
-	String login(LoginDto dto, RedirectAttributes attributes, HttpSession session); 
-	
-	
+//	String login(LoginDto dto, RedirectAttributes attributes, HttpSession session);
+	public String logout(HttpSession session, RedirectAttributes attributes);
+	java.lang.String login(LoginDto dto, RedirectAttributes attributes, HttpSession session);
+
+
 
 }
